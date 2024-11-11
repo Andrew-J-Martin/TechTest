@@ -1,0 +1,39 @@
+Highest Order Value for the Day: To find the order with the highest value, I aggregate the order values using a formula that calculates totalPrice = Quantity * (RetailPrice - Discount). Then, sort by totalPrice in descending order and select the top record. The date and time formatting can be managed with Apex’s DateTime.format() method.
+List<Order__c> orders = [SELECT CustomerID, Qty, Product__r.Retail_Price__c, Discount__c, 
+                         (Quantity__c * (Product__r.Retail_Price__c - (Product__r.Retail_Price__c * Discount__c / 100))) AS totalPrice
+                         FROM Order__c
+                         ORDER BY totalPrice DESC
+                         LIMIT 1];
+if (!orders.isEmpty()) {
+    Order__c highestOrder = orders[0];
+    String formattedDate = highestOrder.OrderDate__c.format('MMMM d, yyyy hh:mm');
+    System.debug('Customer: ' + highestOrder.Customer__c + ', Value: £' + highestOrder.totalPrice + ', Date: ' + formattedDate);
+}
+Customer with the Most Spending: Aggregate the total spending per customer by grouping orders by customer and summing the calculated total prices for each order.
+AggregateResult[] results = [SELECT Customer__c, SUM(Quantity__c * (Product__r.Retail_Price__c - (Product__r.Retail_Price__c * Discount__c / 100))) totalSpent
+                             FROM Order__c
+                             GROUP BY Customer__c
+                             ORDER BY totalSpent DESC
+                             LIMIT 1];
+if (!results.isEmpty()) {
+    AggregateResult topCustomer = results[0];
+    System.debug('Customer: ' + topCustomer.get('Customer__c') + ', Total Spending: £' + topCustomer.get('totalSpent'));
+}
+Identifying Invalid Entries: Validation can be done by iterating over the records to check for common issues, such as missing mandatory fields, unrealistic quantity or discount values, and non-existent product IDs. Use Apex exceptions to handle validation and log errors with detailed messages, including the line from the CSV and the error type.
+List<Order__c> orders = [SELECT Id, Customer__c, Product__c, Quantity__c, Discount__c FROM Order__c];
+for (Order__c order : orders) {
+    if (order.Quantity__c <= 0) {
+        System.debug('Error on Line ' + order.Id + ': Invalid Quantity');
+    }
+}
+Identifying the Busiest Hour: To identify the busiest hour, group orders by the hour and sum the quantities. Then, check if multiple hours have the same peak volume and handle accordingly.
+AggregateResult[] busiestHours = [SELECT HOUR_IN_DAY(OrderDate__c) hour, SUM(Quantity__c) totalItems
+                                  FROM Order__c
+                                  GROUP BY HOUR_IN_DAY(OrderDate__c)
+                                  ORDER BY totalItems DESC
+                                  LIMIT 1];
+if (!busiestHours.isEmpty()) {
+    AggregateResult busiestHour = busiestHours[0];
+    System.debug('Busiest Hour: ' + busiestHour.get('hour') + ':00, Items Sold: ' + busiestHour.get('totalItems'));
+}
+
